@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Alphabet Hunters Bingo V35</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel (for JSX) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Lucide Icons (Fixed Version) -->
+    <script src="https://unpkg.com/lucide@0.292.0"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Global & Reset Styles */
+        :root {
+            --sat: env(safe-area-inset-top);
+            --sab: env(safe-area-inset-bottom);
+        }
+
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background-color: #87CEEB;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 25%),
+                radial-gradient(circle at 85% 30%, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 25%);
+            overflow: hidden;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Utility Helpers */
+        .pb-safe { padding-bottom: calc(10px + var(--sab)); }
+        .pt-safe-top { padding-top: calc(10px + var(--sat)); }
+        .pb-safe-bottom { padding-bottom: calc(10px + var(--sab)); }
+
+        .btn-cartoon {
+            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+            border-bottom-width: 4px;
+            transform: translateY(0);
+        }
+        .btn-cartoon:active {
+            transform: translateY(2px);
+            border-bottom-width: 2px;
+            margin-bottom: 2px;
+            filter: brightness(0.95);
+        }
+
+        .key-cartoon {
+            border-bottom-width: 3px;
+            transition: background-color 0.05s;
+        }
+        .key-cartoon:active {
+            transform: none;
+            border-bottom-width: 3px;
+            margin-bottom: 0;
+            background-color: #d1d5db !important;
+        }
+
+        .lifeline-btn {
+            transition: all 0.2s;
+        }
+        .lifeline-btn:disabled {
+            opacity: 0.6;
+            filter: grayscale(100%);
+            cursor: not-allowed;
+            transform: translateY(2px);
+            border-bottom-width: 0;
+        }
+
+        .wave-header {
+            position: relative;
+            background: #22c55e;
+            padding-bottom: 10px;
+            border-bottom: 4px solid #15803d;
+        }
+
+        .letter-slot {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-bottom-width: 4px;
+        }
+        .letter-slot.filled {
+            transform: translateY(0);
+            background-color: white;
+            border-color: #d1d5db;
+            color: #374151;
+        }
+        .letter-slot.active {
+            border-color: #facc15;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 0 0 #eab308;
+            z-index: 10;
+        }
+        /* 鎖定正確狀態 (綠色) */
+        .letter-slot.locked {
+            background-color: #86efac;
+            border-color: #22c55e;
+            color: #14532d;
+            box-shadow: none;
+            transform: translateY(2px);
+            border-bottom-width: 2px;
+        }
+
+        @keyframes confetti-fall {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+        }
+        .animate-confetti-fall {
+            animation-name: confetti-fall;
+            animation-timing-function: ease-out;
+            animation-fill-mode: forwards;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useCallback } = React;
+
+        // ----------------------------------------------------------------------
+        // Icon Helper: Robust Lucide Loader
+        // ----------------------------------------------------------------------
+        const LucideIcon = ({ name, size = 24, color = "currentColor", className = "", strokeWidth = 2, ...props }) => {
+            // Convert PascalCase (React) to camelCase (Lucide JS object keys)
+            // e.g., MapPin -> mapPin
+            const camelName = name.charAt(0).toLowerCase() + name.slice(1);
+            
+            // Try to find the icon data. Check both camelCase and original just in case.
+            // Also check if 'lucide' global exists to prevent crashes if script fails.
+            const iconData = (window.lucide && window.lucide.icons) ? (window.lucide.icons[camelName] || window.lucide.icons[name]) : null;
+
+            if (!iconData) {
+                // Fallback or placeholder if icon not found (prevents crash)
+                console.warn(`Icon "${name}" not found in Lucide library.`);
+                return <span style={{width: size, height: size, display: 'inline-block'}}>?</span>;
+            }
+
+            // Lucide structure: ["tag", {attrs}, [children]]
+            const [tag, attrs, children] = iconData;
+
+            return (
+                <svg
+                    {...attrs}
+                    width={size}
+                    height={size}
+                    stroke={color}
+                    strokeWidth={strokeWidth}
+                    className={`lucide lucide-${camelName} ${className}`}
+                    {...props}
+                >
+                    {children.map(([childTag, childAttrs], index) => (
+                        React.createElement(childTag, { ...childAttrs, key: index })
+                    ))}
+                </svg>
+            );
+        };
+
+        // Create specific icon components used in the app
+        const Trophy = (props) => <LucideIcon name="Trophy" {...props} />;
+        const MapPin = (props) => <LucideIcon name="MapPin" {...props} />;
+        const X = (props) => <LucideIcon name="X" {...props} />;
+        const Navigation = (props) => <LucideIcon name="Navigation" {...props} />;
+        const HelpCircle = (props) => <LucideIcon name="HelpCircle" {...props} />;
+        const ChevronDown = (props) => <LucideIcon name="ChevronDown" {...props} />;
+        const ChevronUp = (props) => <LucideIcon name="ChevronUp" {...props} />;
+        const Delete = (props) => <LucideIcon name="Delete" {...props} />;
+        const MapIcon = (props) => <LucideIcon name="Map" {...props} />;
+        const Star = (props) => <LucideIcon name="Star" {...props} />;
+        const Puzzle = (props) => <LucideIcon name="Puzzle" {...props} />;
+        const Flashlight = (props) => <LucideIcon name="Flashlight" {...props} />;
+        const Globe = (props) => <LucideIcon name="Globe" {...props} />;
+        const Lock = (props) => <LucideIcon name="Lock" {...props} />;
+        const Check = (props) => <LucideIcon name="Check" {...props} />;
+
+        // ----------------------------------------------------------------------
+        // 1. 遊戲資料
+        // ----------------------------------------------------------------------
+        const LEVELS_SOURCE = [
+            {
+                id: 1,
+                title: "Level 1",
+                clue: "I have no color. I have no shape. You drink me when you are thirsty.",
+                chineseHint: "提示：它是「水」 (WATER)",
+                answer: "WATER",
+                locationName: "Sunken Plaza (水幕廣場)",
+                locationEng: "Sunken Plaza / MRT Station",
+                description: "去捷運站出口，找那一面會噴水的牆！",
+                color: "bg-blue-400",
+                shadow: "border-blue-700",
+                icon: "💧",
+                mapPin: { top: "15%", left: "20%", color: "bg-blue-500" }
+            },
+            {
+                id: 2,
+                title: "Level 2",
+                clue: "I have two wings and two legs. I lay eggs. I can sing and fly in the sky.",
+                chineseHint: "提示：它是「鳥」 (BIRD)",
+                answer: "BIRD",
+                locationName: "Ecological Pond (生態池賞鳥平台)",
+                locationEng: "Ecological Pond",
+                description: "去生態池找找看，那裡有很多大砲相機喔。",
+                color: "bg-green-400",
+                shadow: "border-green-700",
+                icon: "🦆",
+                mapPin: { top: "25%", left: "10%", color: "bg-green-500" }
+            },
+            {
+                id: 3,
+                title: "Level 3",
+                clue: "You cannot see me, but you can hear me. You can dance with me.",
+                chineseHint: "提示：它是「音樂」 (MUSIC)",
+                answer: "MUSIC",
+                locationName: "Amphitheater (露天音樂台)",
+                locationEng: "Amphitheater",
+                description: "去公園裡唯一的紅色座位區和大舞台。",
+                color: "bg-purple-400",
+                shadow: "border-purple-700",
+                icon: "🎵",
+                mapPin: { top: "55%", left: "25%", color: "bg-purple-500" }
+            },
+            {
+                id: 4,
+                title: "Level 4",
+                clue: "I lived a long time ago. I am very big and scary. ROAR!",
+                chineseHint: "提示：它是「恐龍」 (DINOSAUR)",
+                answer: "DINOSAUR",
+                altAnswers: ["DINOSAUR"],
+                locationName: "Playground (恐龍滑梯)",
+                locationEng: "Playground",
+                description: "去兒童遊戲場，找那一隻超大的恐龍！",
+                color: "bg-orange-400",
+                shadow: "border-orange-700",
+                icon: "🦖",
+                mapPin: { top: "25%", left: "45%", color: "bg-orange-500" }
+            },
+            {
+                id: 5,
+                title: "Level 5",
+                clue: "I am very small and brown. You find me at the beach or a park.",
+                chineseHint: "提示：它是「沙子」 (SAND)",
+                answer: "SAND",
+                locationName: "Sandpit (沙坑)",
+                locationEng: "Sandpit",
+                description: "就在恐龍旁邊，地上有圍起來的一區。",
+                color: "bg-yellow-400",
+                shadow: "border-yellow-600",
+                icon: "🏖️",
+                mapPin: { top: "35%", left: "50%", color: "bg-orange-500" }
+            },
+            {
+                id: 6,
+                title: "Level 6",
+                clue: "I smell good. I have many colors like red, pink, or yellow.",
+                chineseHint: "提示：它是「花」 (FLOWER)",
+                answer: "FLOWER",
+                locationName: "Azalea Garden (杜鵑冶園)",
+                locationEng: "Azalea Garden",
+                description: "找寫著 Azalea Garden 的大石頭，那裡有很多花。",
+                color: "bg-pink-400",
+                shadow: "border-pink-700",
+                icon: "🌺",
+                mapPin: { top: "45%", left: "40%", color: "bg-pink-500" }
+            },
+            {
+                id: 7,
+                title: "Level 7",
+                clue: "I am a number. I am 1 plus 1. How many eyes do you have?",
+                chineseHint: "提示：它是「數字 2」 (TWO)",
+                answer: "TWO",
+                locationName: "MRT Exit 2 (捷運2號出口)",
+                locationEng: "Exit 2",
+                description: "抬頭看捷運站的黃色出口指標，找這個數字。",
+                color: "bg-red-400",
+                shadow: "border-red-700",
+                icon: "2️⃣",
+                mapPin: { top: "15%", left: "35%", color: "bg-pink-500" }
+            },
+            {
+                id: 8,
+                title: "Level 8",
+                clue: "I am a shoe with wheels. Put me on to go fast on the ground.",
+                chineseHint: "提示：它是「溜冰鞋」 (SKATE)",
+                answer: "SKATE",
+                locationName: "Skating Rink (溜冰場)",
+                locationEng: "Skating Rink",
+                description: "去公園角落，找有人在溜直排輪的地方。",
+                color: "bg-blue-400",
+                shadow: "border-blue-600",
+                icon: "⛸️",
+                mapPin: { top: "15%", left: "85%", color: "bg-blue-500" }
+            },
+            {
+                id: 9,
+                title: "Level 9",
+                clue: "I am round. I can bounce. You throw me and kick me in a game.",
+                chineseHint: "提示：它是「球」 (BALL)",
+                answer: "BALL",
+                altAnswers: ["BASKETBALL"],
+                locationName: "Basketball Court (籃球場)",
+                locationEng: "Basketball Court",
+                description: "跟著拍球的聲音走，找有籃框的地方！",
+                color: "bg-orange-500",
+                shadow: "border-orange-800",
+                icon: "🏀",
+                mapPin: { top: "35%", left: "88%", color: "bg-orange-500" }
+            }
+        ];
+
+        const KEYBOARD_ROWS = [
+            ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+            ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+            ['Z', 'X', 'C', 'V', 'B', 'N', 'M']
+        ];
+
+        const WINNING_INDICES = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8],
+            [0, 3, 6], [1, 4, 7], [2, 5, 8],
+            [0, 4, 8], [2, 4, 6]
+        ];
+
+        const PRAISE_WORDS = ["AWESOME!", "GREAT!", "SUPERB!", "YAY!", "COOL!", "WOW!", "NICE!", "YES!"];
+
+        // ----------------------------------------------------------------------
+        // 2. 小組件
+        // ----------------------------------------------------------------------
+
+        const ConfettiExplosion = () => {
+            const particles = Array.from({ length: 40 }).map((_, i) => ({
+                id: i,
+                x: Math.random() * 100,
+                color: ['#FFD700', '#FF6347', '#32CD32', '#1E90FF', '#FF69B4'][Math.floor(Math.random() * 5)],
+                delay: Math.random() * 0.3,
+                rotation: Math.random() * 360,
+            }));
+
+            return (
+                <div className="fixed inset-0 pointer-events-none z-[100] overflow-hidden">
+                    {particles.map((p) => (
+                        <div
+                            key={p.id}
+                            className="absolute w-4 h-4 rounded-sm animate-confetti-fall shadow-sm border border-black/10"
+                            style={{
+                                left: `${p.x}%`,
+                                top: `-5%`,
+                                backgroundColor: p.color,
+                                transform: `rotate(${p.rotation}deg)`,
+                                animationDelay: `${p.delay}s`,
+                                animationDuration: '2.5s',
+                                opacity: 1
+                            }}
+                        />
+                    ))}
+                </div>
+            );
+        };
+
+        const ParkMapSVG = ({ activeLevelId }) => {
+            return (
+                <div className="relative w-full aspect-[16/9] bg-[#e6f4e6] rounded-xl overflow-hidden border-2 border-green-600">
+                    <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-gray-700 text-white text-[10px] px-2 py-0.5 rounded-full z-10 border-2 border-white shadow-sm">Entrance</div>
+                    <svg width="100%" height="100%" viewBox="0 0 800 450" className="absolute inset-0 opacity-50">
+                        <path d="M50 50 Q 400 80 750 50" stroke="#94a3b8" strokeWidth="25" fill="none" />
+                        <path d="M50 150 Q 150 200 250 150 T 350 150" fill="#93c5fd" />
+                        <rect x="300" y="150" width="200" height="150" fill="#86efac" rx="30" />
+                        <rect x="30" y="30" width="120" height="80" fill="#60a5fa" rx="15" />
+                    </svg>
+                    <div className="absolute top-4 left-4 text-[10px] font-black text-blue-900 bg-white/80 px-1 rounded">MRT</div>
+                    {LEVELS_SOURCE.map((level) => {
+                        const isActive = activeLevelId === level.id;
+                        const opacity = activeLevelId && !isActive ? "opacity-30 scale-75" : "opacity-100 scale-100";
+                        const animation = isActive ? "animate-bounce" : "";
+                        const zIndex = isActive ? "z-20" : "z-10";
+                        return (
+                            <div key={level.id} className={`absolute flex flex-col items-center transition-all ${opacity} ${animation} ${zIndex}`} style={{ top: level.mapPin.top, left: level.mapPin.left, transform: 'translate(-50%, -100%)' }}>
+                                <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full border-2 border-white shadow flex items-center justify-center text-white font-bold text-xs ${isActive ? 'bg-red-500 scale-125' : level.mapPin.color}`}>
+                                    {level.id}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            );
+        };
+
+        const ParkMapModal = ({ onClose, level }) => {
+            return (
+                <div 
+                    className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4 animate-in fade-in backdrop-blur-sm"
+                    style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+                >
+                    <div className="bg-white w-[95%] max-w-md rounded-2xl overflow-hidden shadow-xl flex flex-col max-h-[85vh] border-4 border-white">
+                        <div className="bg-green-500 text-white p-3 flex justify-between items-center shrink-0">
+                            <span className="font-bold text-lg tracking-wide">{level ? `Go to: ${level.locationEng}` : "Park Map"}</span>
+                            <button onClick={onClose} className="bg-white/20 p-1 rounded-full hover:bg-white/30"><X size={20} /></button>
+                        </div>
+                        <div className="p-4 overflow-y-auto flex-1 flex flex-col items-center bg-gray-50 min-h-0">
+                            <ParkMapSVG activeLevelId={level?.id} />
+                            <div className="mt-4 bg-white p-3 rounded-xl border border-gray-200 w-full text-center shadow-sm">
+                                {level ? (
+                                    <React.Fragment>
+                                        <p className="font-black text-green-600 text-lg mb-1">TARGET #{level.id}</p>
+                                        <p className="text-base text-gray-800 font-bold">{level.locationName}</p>
+                                    </React.Fragment>
+                                ) : (
+                                    <p className="text-gray-600 font-bold">Find all 9 locations!</p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const VirtualKeyboard = ({ onKeyClick, onSubmit }) => {
+            return (
+                <div className="bg-[#E5E7EB] p-2 pb-safe shrink-0 border-t-4 border-white w-full rounded-t-[2rem] shadow-[inset_0_4px_8px_rgba(0,0,0,0.1)]">
+                    <div className="flex flex-col gap-2 w-full max-w-lg mx-auto pt-2 pb-2">
+                        <div className="flex justify-center gap-[4px] w-full px-1">
+                            {KEYBOARD_ROWS[0].map((key) => (
+                                <button
+                                    key={key}
+                                    onClick={() => onKeyClick(key)}
+                                    className="h-11 flex-1 rounded-md shadow-sm font-bold text-gray-700 bg-white border-b-2 border-gray-300 key-cartoon flex items-center justify-center text-lg active:bg-gray-100"
+                                >
+                                    {key}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex justify-center gap-[4px] w-full px-4">
+                            {KEYBOARD_ROWS[1].map((key) => (
+                                <button
+                                    key={key}
+                                    onClick={() => onKeyClick(key)}
+                                    className="h-11 flex-1 rounded-md shadow-sm font-bold text-gray-700 bg-white border-b-2 border-gray-300 key-cartoon flex items-center justify-center text-lg active:bg-gray-100"
+                                >
+                                    {key}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex justify-center gap-[4px] w-full px-1">
+                            {KEYBOARD_ROWS[2].map((key) => (
+                                <button
+                                    key={key}
+                                    onClick={() => onKeyClick(key)}
+                                    className="h-11 flex-1 rounded-md shadow-sm font-bold text-gray-700 bg-white border-b-2 border-gray-300 key-cartoon flex items-center justify-center text-lg active:bg-gray-100"
+                                >
+                                    {key}
+                                </button>
+                            ))}
+                            <button
+                                onClick={() => onKeyClick('BACKSPACE')}
+                                className="h-11 flex-[1.5] rounded-md shadow-sm font-bold text-white bg-red-400 border-b-2 border-red-600 key-cartoon flex items-center justify-center active:bg-red-500"
+                            >
+                                <Delete size={20} strokeWidth={3} />
+                            </button>
+                        </div>
+                        <div className="px-1 mt-1">
+                            <button 
+                                onClick={onSubmit}
+                                className="w-full bg-green-500 text-white h-12 rounded-xl font-black text-2xl border-b-4 border-green-700 btn-cartoon uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg active:bg-green-600"
+                            >
+                                CHECK
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const BingoGrid = ({ gridLevels, solved, bingoIndices, onGridClick }) => {
+            return (
+                <div className="w-full flex-1 flex items-center justify-center min-h-0 my-2 px-1">
+                    <div className="bg-[#FFF8E7] p-2 rounded-[1.5rem] shadow-[0_6px_0_0_rgba(0,0,0,0.15)] border-4 border-white w-full h-full max-h-[420px] flex flex-col justify-center relative">
+                        <div className="absolute top-2 left-2 w-2 h-2 rounded-full bg-gray-300 shadow-inner"></div>
+                        <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-gray-300 shadow-inner"></div>
+                        <div className="absolute bottom-2 left-2 w-2 h-2 rounded-full bg-gray-300 shadow-inner"></div>
+                        <div className="absolute bottom-2 right-2 w-2 h-2 rounded-full bg-gray-300 shadow-inner"></div>
+
+                        <div className="grid grid-cols-3 gap-2 h-full relative z-10">
+                            {gridLevels.map((level, index) => {
+                                const isSolved = solved.includes(level.id);
+                                const isBingo = bingoIndices.includes(index);
+                                return (
+                                    <button
+                                        key={level.id}
+                                        onClick={() => onGridClick(level)}
+                                        className={`
+                                            rounded-xl flex flex-col items-center justify-center p-0.5 relative overflow-hidden btn-cartoon h-full
+                                            ${isSolved 
+                                                ? `${level.color} ${level.shadow} text-white shadow-sm border-2 border-white/20` 
+                                                : 'bg-[#DEB887] border-[#A0522D] text-[#8B4513]'
+                                            }
+                                            ${isBingo ? 'ring-4 ring-yellow-300 z-10' : ''}
+                                        `}
+                                    >
+                                        {isBingo && <div className="absolute inset-0 bg-yellow-400/30 animate-pulse z-0 pointer-events-none"></div>}
+                                        <div className="relative z-10 flex flex-col items-center w-full justify-center h-full">
+                                            {isSolved ? (
+                                                <React.Fragment>
+                                                    <span className="text-2xl sm:text-4xl mb-0.5 filter drop-shadow-md">{level.icon}</span>
+                                                    <span className="text-[9px] sm:text-[10px] font-black uppercase truncate w-full text-center px-1 bg-black/10 rounded-full leading-tight py-0.5">{level.answer}</span>
+                                                </React.Fragment>
+                                            ) : (
+                                                <React.Fragment>
+                                                    <span className="text-3xl sm:text-4xl font-black opacity-40">?</span>
+                                                    <span className="absolute bottom-1 right-1 text-[10px] font-black opacity-60">#{level.id}</span>
+                                                </React.Fragment>
+                                            )}
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const LetterSlots = ({ inputArray, lockedIndices }) => {
+            const answerLength = inputArray.length;
+            let slotSizeClass = "w-10 h-12 sm:w-12 sm:h-14 text-3xl sm:text-4xl";
+            if (answerLength >= 8) {
+                slotSizeClass = "w-7 h-9 sm:w-8 sm:h-10 text-lg sm:text-xl";
+            } else if (answerLength >= 6) {
+                slotSizeClass = "w-8 h-10 sm:w-10 sm:h-12 text-2xl sm:text-3xl";
+            }
+
+            // Find first empty non-locked slot for active state
+            let activeIndex = -1;
+            for (let i = 0; i < answerLength; i++) {
+                if (!inputArray[i] && !lockedIndices[i]) {
+                    activeIndex = i;
+                    break;
+                }
+            }
+
+            return (
+                <div className="flex justify-center gap-1 sm:gap-1.5 flex-wrap">
+                    {inputArray.map((char, i) => {
+                        const isLocked = lockedIndices[i];
+                        const isFilled = !!char;
+                        const isActive = (i === activeIndex);
+
+                        return (
+                            <div 
+                                key={i} 
+                                className={`
+                                    letter-slot ${slotSizeClass} rounded-lg flex items-center justify-center font-black text-gray-700 bg-gray-100 border-b-4 border-gray-300 shadow-sm relative
+                                    ${isLocked ? 'locked' : ''}
+                                    ${isActive && !isLocked ? 'active bg-white' : ''}
+                                    ${isFilled && !isLocked ? 'filled' : ''}
+                                `}
+                            >
+                                {isLocked && <Lock size={12} className="absolute top-0.5 right-0.5 text-green-800 opacity-60" />}
+                                {char}
+                            </div>
+                        );
+                    })}
+                </div>
+            );
+        };
+
+        const GameModal = ({ level, showResult, inputArray, lockedIndices, errorMsg, praiseText, lifelines, activeHint, onClose, onKeyClick, onSubmit, onShowMap, onUseLifeline }) => {
+            const [confirmingType, setConfirmingType] = useState(null); 
+
+            if (!level) return null;
+
+            const handleLifelineClick = (type) => {
+                setConfirmingType(type);
+            };
+
+            const handleConfirmLifeline = () => {
+                if (confirmingType) {
+                    onUseLifeline(confirmingType); 
+                    setConfirmingType(null); 
+                }
+            };
+
+            return (
+                <div 
+                    className="fixed inset-0 z-50 flex flex-col justify-end bg-black/70 backdrop-blur-sm animate-in fade-in" 
+                    style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+                >
+                    <div className="absolute inset-0" onClick={onClose}></div>
+                    <div className="relative w-full sm:w-[95%] sm:max-w-md mx-auto bg-[#FFF8E7] rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl overflow-hidden max-h-[90dvh] flex flex-col border-t-8 border-green-500">
+                        
+                        <button onClick={onClose} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 z-10 p-1.5 bg-white rounded-full shadow-[0_3px_0_0_rgba(0,0,0,0.1)] btn-cartoon border-2 border-gray-100">
+                            <X size={24} strokeWidth={3} />
+                        </button>
+
+                        {confirmingType && (
+                            <div className="absolute inset-0 z-20 bg-black/50 flex items-center justify-center p-6 animate-in fade-in">
+                                <div className="bg-white rounded-2xl p-5 w-full text-center shadow-2xl border-4 border-yellow-400 animate-in zoom-in-95">
+                                    <div className="mb-4">
+                                        <span className="text-4xl">
+                                            {confirmingType === 'puzzle' && '🧩'}
+                                            {confirmingType === 'flash' && '🔦'}
+                                            {confirmingType === 'trans' && '🌏'}
+                                        </span>
+                                    </div>
+                                    <h3 className="text-xl font-black text-gray-800 mb-1">
+                                        {confirmingType === 'puzzle' && 'SCRAMBLE LETTERS?'}
+                                        {confirmingType === 'flash' && 'SHOW 1st LETTER?'}
+                                        {confirmingType === 'trans' && 'SEE CHINESE?'}
+                                    </h3>
+                                    <p className="text-sm text-gray-500 font-bold mb-6">
+                                        {confirmingType === 'puzzle' && 'Mix letters to help! (Only 1 time!)'}
+                                        {confirmingType === 'flash' && 'Reveal the start! (Only 1 time!)'}
+                                        {confirmingType === 'trans' && 'Show meaning! (Only 1 time!)'}
+                                    </p>
+                                    
+                                    <div className="flex gap-3">
+                                        <button 
+                                            onClick={() => setConfirmingType(null)}
+                                            className="flex-1 py-3 rounded-xl font-black bg-gray-200 text-gray-600 border-b-4 border-gray-300 btn-cartoon"
+                                        >
+                                            NO
+                                        </button>
+                                        <button 
+                                            onClick={handleConfirmLifeline}
+                                            className="flex-1 py-3 rounded-xl font-black bg-green-500 text-white border-b-4 border-green-700 btn-cartoon"
+                                        >
+                                            YES!
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {showResult ? (
+                            // 結果模式
+                            <div className="flex flex-col h-full overflow-hidden bg-[#FFF8E7]">
+                                <div className={`${level.color} p-4 text-white text-center relative shrink-0 rounded-b-[2rem] shadow-md border-b-8 border-black/10`}>
+                                        <div className="w-14 h-14 bg-white/20 rounded-full mx-auto flex items-center justify-center backdrop-blur-md mb-1 text-3xl shadow-sm animate-bounce border-4 border-white/30">
+                                        {level.icon}
+                                    </div>
+                                    <div className="bg-white/20 inline-block px-3 py-0.5 rounded-full backdrop-blur-sm mb-1 border-2 border-white/30">
+                                        <p className="text-[10px] font-black tracking-widest flex items-center gap-1"><Star size={10} fill="white"/> {praiseText} <Star size={10} fill="white"/></p>
+                                    </div>
+                                    <h2 className="text-3xl font-black tracking-wider drop-shadow-md text-stroke-sm">{level.answer}</h2>
+                                </div>
+
+                                <div className="p-4 space-y-3 flex-1 overflow-y-auto min-h-0">
+                                    <div className="bg-white p-4 rounded-[1.5rem] border-4 border-green-200 shadow-[0_4px_0_0_rgba(0,0,0,0.05)]">
+                                        <h3 className="flex items-center gap-2 text-green-600 font-black mb-1 text-xs uppercase tracking-widest">
+                                            <Navigation size={18} strokeWidth={3} />
+                                            GO HERE
+                                        </h3>
+                                        <p className="text-xl font-black text-gray-800 leading-tight mb-0.5">{level.locationName}</p>
+                                        <p className="text-xs text-gray-500 font-bold bg-gray-100 px-2 py-0.5 rounded-full inline-block">{level.locationEng}</p>
+                                    </div>
+
+                                    <div className="text-sm font-bold text-gray-700 leading-relaxed bg-yellow-100 p-4 rounded-[1.5rem] border-4 border-yellow-200 shadow-inner">
+                                        💡 <span className="text-gray-900">{level.description}</span>
+                                    </div>
+                                    
+                                    <div className="flex gap-2 pt-1 pb-4">
+                                        <button onClick={onShowMap} className="flex-1 bg-white text-blue-500 py-3 rounded-xl font-black border-b-4 border-blue-200 btn-cartoon flex items-center justify-center gap-2 text-base shadow-sm">
+                                            <MapIcon size={20} strokeWidth={3} /> MAP
+                                        </button>
+                                        <button onClick={onClose} className="flex-1 bg-green-500 text-white py-3 rounded-xl font-black border-b-4 border-green-700 btn-cartoon text-base shadow-sm">
+                                            OK!
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            // 解謎模式
+                            <div className="flex flex-col h-full bg-[#FFF8E7]">
+                                <div className="flex-1 overflow-y-auto p-4 flex flex-col items-center justify-center text-center min-h-0">
+                                        <div className="bg-yellow-300 text-yellow-900 px-4 py-1 rounded-full text-xs font-black mb-3 shadow-[0_2px_0_0_#ca8a04] border-2 border-yellow-400 uppercase tracking-widest transform -rotate-2 shrink-0">
+                                            Mission #{level.id}
+                                        </div>
+                                        
+                                        {/* 謎題區塊 */}
+                                        <div className="flex items-center justify-center gap-3 px-2">
+                                            <p className="text-xl sm:text-2xl font-black text-gray-800 leading-snug drop-shadow-sm">
+                                                "{level.clue}"
+                                            </p>
+                                        </div>
+                                        
+                                        {activeHint === 'puzzle' && (
+                                            <div className="mt-4 flex gap-2 flex-wrap justify-center animate-in fade-in slide-in-from-bottom-2">
+                                                {level.answer.split('').sort(() => Math.random() - 0.5).map((char, i) => (
+                                                    <span key={i} className="bg-white text-blue-500 font-black w-8 h-8 rounded-full flex items-center justify-center shadow-md border-2 border-blue-100">{char}</span>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {activeHint === 'trans' && (
+                                            <div className="mt-4 bg-white/90 p-3 rounded-2xl text-green-700 font-bold border-4 border-green-200 animate-in fade-in slide-in-from-bottom-2 shadow-sm max-w-xs">
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-[10px] bg-green-100 text-green-800 px-2 py-0.5 rounded-full w-max mx-auto">✨ 中文提示</span>
+                                                    <span>{level.chineseHint}</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                </div>
+
+                                <div className="px-4 pb-2 text-center shrink-0">
+                                    
+                                    {/* 法寶按鈕列 */}
+                                    <div className="flex justify-center gap-4 mb-3 relative z-10">
+                                        <button 
+                                            onClick={() => handleLifelineClick('puzzle')} 
+                                            disabled={!lifelines.puzzle}
+                                            className={`w-14 h-14 rounded-full flex items-center justify-center border-b-4 transition-all lifeline-btn ${lifelines.puzzle ? 'bg-purple-400 border-purple-600 text-white active:border-b-0 active:translate-y-1' : 'bg-gray-300 border-gray-400 text-gray-500'}`}
+                                        >
+                                            {lifelines.puzzle ? <Puzzle size={24} /> : <Lock size={20} />}
+                                        </button>
+                                        <button 
+                                            onClick={() => handleLifelineClick('flash')} 
+                                            disabled={!lifelines.flash}
+                                            className={`w-14 h-14 rounded-full flex items-center justify-center border-b-4 transition-all lifeline-btn ${lifelines.flash ? 'bg-yellow-400 border-yellow-600 text-yellow-900 active:border-b-0 active:translate-y-1' : 'bg-gray-300 border-gray-400 text-gray-500'}`}
+                                        >
+                                            {lifelines.flash ? <Flashlight size={24} /> : <Lock size={20} />}
+                                        </button>
+                                        <button 
+                                            onClick={() => handleLifelineClick('trans')} 
+                                            disabled={!lifelines.trans}
+                                            className={`w-14 h-14 rounded-full flex items-center justify-center border-b-4 transition-all lifeline-btn ${lifelines.trans ? 'bg-pink-400 border-pink-600 text-white active:border-b-0 active:translate-y-1' : 'bg-gray-300 border-gray-400 text-gray-500'}`}
+                                        >
+                                            {lifelines.trans ? <Globe size={24} /> : <Lock size={20} />}
+                                        </button>
+                                    </div>
+
+                                    {/* Letter Slots Display */}
+                                    <div className="h-20 w-full flex items-center justify-center">
+                                        <LetterSlots 
+                                            inputArray={inputArray} 
+                                            lockedIndices={lockedIndices}
+                                        />
+                                    </div>
+                                    
+                                    {/* Error Message */}
+                                    {errorMsg && (
+                                        <div className="absolute top-[50%] left-0 right-0 z-20 pointer-events-none">
+                                            <div className={`text-white text-[12px] font-black uppercase tracking-wide inline-block px-4 py-1.5 rounded-full shadow-lg transform rotate-2 animate-bounce mx-auto border-2 border-white ${errorMsg.includes("CLOSE") ? 'bg-yellow-500' : 'bg-red-500'}`}>
+                                                {errorMsg}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <VirtualKeyboard onKeyClick={onKeyClick} onSubmit={onSubmit} />
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // ----------------------------------------------------------------------
+        // Main App Component
+        // ----------------------------------------------------------------------
+        const App = () => {
+            const [gridLevels, setGridLevels] = useState([]); 
+            const [solved, setSolved] = useState([]);
+            const [currentLevel, setCurrentLevel] = useState(null);
+            
+            const [inputArray, setInputArray] = useState([]);
+            const [lockedIndices, setLockedIndices] = useState([]);
+            
+            const [showResult, setShowResult] = useState(false);
+            const [errorMsg, setErrorMsg] = useState("");
+            const [showInstructions, setShowInstructions] = useState(false); 
+            const [showMap, setShowMap] = useState(false);
+            const [bingoIndices, setBingoIndices] = useState([]); 
+            const [showConfetti, setShowConfetti] = useState(false);
+            const [praiseText, setPraiseText] = useState("CORRECT!");
+            
+            const [lifelines, setLifelines] = useState({ puzzle: true, flash: true, trans: true });
+            const [activeHint, setActiveHint] = useState(null); 
+            
+            const vibrate = useCallback((pattern) => {
+                if (navigator.vibrate) navigator.vibrate(pattern);
+            }, []);
+
+            const shuffleArray = (array) => {
+                const newArray = [...array];
+                for (let i = newArray.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+                }
+                return newArray;
+            };
+
+            useEffect(() => {
+                const savedOrder = localStorage.getItem('bingo_grid_order_v34');
+                let currentGrid = [];
+                if (savedOrder) {
+                    const orderIds = JSON.parse(savedOrder);
+                    currentGrid = orderIds.map(id => LEVELS_SOURCE.find(l => l.id === id));
+                } else {
+                    currentGrid = shuffleArray(LEVELS_SOURCE);
+                    const orderIds = currentGrid.map(l => l.id);
+                    localStorage.setItem('bingo_grid_order_v34', JSON.stringify(orderIds));
+                }
+                setGridLevels(currentGrid);
+
+                const savedSolved = localStorage.getItem('bingo_solved_v34');
+                if (savedSolved) {
+                    const savedSolvedIds = JSON.parse(savedSolved);
+                    setSolved(savedSolvedIds);
+                    if (savedSolvedIds.length > 0) setShowInstructions(false);
+                    checkBingoLines(savedSolvedIds, currentGrid);
+                }
+
+                const savedLifelines = localStorage.getItem('bingo_lifelines_v34');
+                if (savedLifelines) {
+                    setLifelines(JSON.parse(savedLifelines));
+                }
+            }, []);
+
+            const checkBingoLines = (currentSolvedIds, currentGrid) => {
+                if (!currentGrid || currentGrid.length === 0) return;
+                const newBingoIndices = [];
+                WINNING_INDICES.forEach(lineIndices => {
+                    const isLineComplete = lineIndices.every(index => {
+                        const levelId = currentGrid[index].id;
+                        return currentSolvedIds.includes(levelId);
+                    });
+                    if (isLineComplete) newBingoIndices.push(...lineIndices);
+                });
+                setBingoIndices([...new Set(newBingoIndices)]);
+            };
+
+            const handleGridClick = (level) => {
+                if (solved.includes(level.id)) {
+                    setCurrentLevel(level);
+                    setShowResult(true);
+                    setPraiseText("FOUND!"); 
+                } else {
+                    setCurrentLevel(level);
+                    setShowResult(false);
+                    setErrorMsg("");
+                    setActiveHint(null); 
+                    setInputArray(new Array(level.answer.length).fill(""));
+                    setLockedIndices(new Array(level.answer.length).fill(false));
+                }
+            };
+
+            const handleKeyClick = (key) => {
+                setErrorMsg("");
+                vibrate(15);
+                
+                if (!currentLevel) return;
+
+                if (key === 'BACKSPACE') {
+                    const newArray = [...inputArray];
+                    let indexToDelete = -1;
+                    for (let i = newArray.length - 1; i >= 0; i--) {
+                        if (newArray[i] !== "" && !lockedIndices[i]) {
+                            indexToDelete = i;
+                            break;
+                        }
+                    }
+                    
+                    if (indexToDelete !== -1) {
+                        newArray[indexToDelete] = "";
+                        setInputArray(newArray);
+                    }
+                } else {
+                    const newArray = [...inputArray];
+                    const emptyIndex = newArray.findIndex((char, i) => char === "" && !lockedIndices[i]);
+                    
+                    if (emptyIndex !== -1) {
+                        newArray[emptyIndex] = key;
+                        setInputArray(newArray);
+                    } else {
+                        vibrate(50); 
+                    }
+                }
+            };
+
+            const handleUseLifeline = (type) => {
+                const newLifelines = { ...lifelines, [type]: false };
+                setLifelines(newLifelines);
+                localStorage.setItem('bingo_lifelines_v34', JSON.stringify(newLifelines));
+
+                if (type === 'puzzle') {
+                    setActiveHint('puzzle');
+                } else if (type === 'flash') {
+                    if (currentLevel) {
+                        const firstChar = currentLevel.answer.charAt(0);
+                        const newArray = [...inputArray];
+                        const newLocked = [...lockedIndices];
+                        
+                        newArray[0] = firstChar;
+                        newLocked[0] = true;
+                        
+                        setInputArray(newArray);
+                        setLockedIndices(newLocked);
+                    }
+                } else if (type === 'trans') {
+                    setActiveHint('trans'); 
+                }
+                vibrate([50, 100]); 
+            };
+
+            const handleSubmit = (e) => {
+                if (e) e.preventDefault();
+                if (!currentLevel) return;
+                
+                const inputString = inputArray.join("").toUpperCase();
+                const correctString = currentLevel.answer;
+                
+                const newLocked = [...lockedIndices];
+                let isFullMatch = true;
+                let correctCount = 0;
+
+                for (let i = 0; i < correctString.length; i++) {
+                    if (inputArray[i] === correctString[i]) {
+                        newLocked[i] = true; 
+                        correctCount++;
+                    } else {
+                        isFullMatch = false; 
+                    }
+                }
+
+                if (isFullMatch) {
+                    vibrate([50, 50, 50]);
+                    setShowConfetti(true);
+                    setTimeout(() => setShowConfetti(false), 3000);
+                    const randomPraise = PRAISE_WORDS[Math.floor(Math.random() * PRAISE_WORDS.length)];
+                    setPraiseText(randomPraise);
+                    const newSolved = [...solved, currentLevel.id];
+                    if (!solved.includes(currentLevel.id)) {
+                        setSolved(newSolved);
+                        localStorage.setItem('bingo_solved_v34', JSON.stringify(newSolved));
+                        checkBingoLines(newSolved, gridLevels);
+                    }
+                    setShowResult(true);
+                } else {
+                    vibrate(100);
+                    setLockedIndices(newLocked); 
+                    
+                    const cleanedArray = inputArray.map((char, i) => {
+                        return newLocked[i] ? char : ""; 
+                    });
+                    setInputArray(cleanedArray);
+
+                    const mistakes = correctString.length - correctCount;
+                    if (mistakes <= 2) {
+                        setErrorMsg("SO CLOSE! (KEPT GREEN)"); 
+                    } else {
+                        setErrorMsg("TRY AGAIN!");
+                    }
+                }
+            };
+
+            const handleReset = () => {
+                if(window.confirm("RESET GAME? This will SHUFFLE your card & RESTORE LIFELINES!")) {
+                    localStorage.removeItem('bingo_solved_v34');
+                    localStorage.removeItem('bingo_grid_order_v34');
+                    localStorage.removeItem('bingo_lifelines_v34');
+                    
+                    setSolved([]);
+                    setBingoIndices([]);
+                    setLifelines({ puzzle: true, flash: true, trans: true }); 
+                    setShowInstructions(false);
+                    window.scrollTo(0, 0);
+                    
+                    const newGrid = shuffleArray(LEVELS_SOURCE);
+                    setGridLevels(newGrid);
+                    const orderIds = newGrid.map(l => l.id);
+                    localStorage.setItem('bingo_grid_order_v34', JSON.stringify(orderIds));
+                }
+            };
+
+            const progress = Math.round((solved.length / 9) * 100);
+
+            if (gridLevels.length === 0) return <div className="h-[100dvh] flex items-center justify-center font-bold text-white text-xl">Loading...</div>;
+
+            return (
+                <div className="h-[100dvh] w-full relative flex flex-col font-fredoka text-gray-800 overflow-hidden">
+                    {showConfetti && <ConfettiExplosion />}
+
+                    <header className="wave-header pt-safe-top px-4 z-10 shrink-0 shadow-lg relative flex flex-col justify-end min-h-[80px]">
+                        <div className="flex items-center justify-between pb-1">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-white p-2 rounded-xl shadow-[0_3px_0_0_rgba(0,0,0,0.2)] border-2 border-green-700 transform -rotate-6">
+                                    <MapPin className="w-5 h-5 text-green-600 fill-green-100" strokeWidth={2.5} />
+                                </div>
+                                <div>
+                                    <h1 className="text-lg font-black tracking-tight text-white drop-shadow-md stroke-black" style={{textShadow: '2px 2px 0px #064e3b'}}>ALPHABET HUNTERS</h1>
+                                </div>
+                            </div>
+                            <div className="flex flex-col items-end w-1/3">
+                                <span className="text-[10px] font-black text-white mb-1 drop-shadow-md">{solved.length}/9 FOUND</span>
+                                <div className="w-full bg-black/20 h-3 rounded-full overflow-hidden border-2 border-white/40 shadow-inner">
+                                    <div className="bg-yellow-400 h-full transition-all duration-500 border-r-4 border-yellow-600 relative overflow-hidden" style={{ width: `${progress}%` }}>
+                                        <div className="absolute inset-0 bg-white/20" style={{backgroundImage: 'linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent)', backgroundSize: '1rem 1rem'}}></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="flex-1 p-3 w-full max-w-md mx-auto flex flex-col min-h-0 overflow-y-auto">
+                        
+                        <div className="mb-1 shrink-0 flex justify-end">
+                            <button 
+                                onClick={() => setShowInstructions(!showInstructions)} 
+                                className="text-[10px] font-black text-green-700 bg-white px-2 py-1 rounded-full border-b-2 border-green-200 shadow-sm flex items-center gap-1 active:border-b-0 active:translate-y-0.5 transition-all"
+                            >
+                                <HelpCircle size={14} strokeWidth={2.5} /> HELP
+                            </button>
+                        </div>
+                        
+                        {showInstructions && (
+                            <div className="mb-2 p-2 text-xs text-gray-600 bg-white rounded-xl shadow-[0_4px_0_0_rgba(0,0,0,0.1)] border-2 border-green-100 absolute top-24 left-4 right-4 z-20 animate-in fade-in slide-in-from-top-2">
+                                <div className="flex justify-between items-start">
+                                    <div className="space-y-1 w-full">
+                                        <div className="flex gap-2 items-center"><span className="bg-yellow-400 text-yellow-900 w-4 h-4 rounded-md flex items-center justify-center font-black text-[10px] border-b-2 border-yellow-600">1</span>Tap number</div>
+                                        <div className="flex gap-2 items-center"><span className="bg-yellow-400 text-yellow-900 w-4 h-4 rounded-md flex items-center justify-center font-black text-[10px] border-b-2 border-yellow-600">2</span>Type word</div>
+                                        <div className="flex gap-2 items-center"><span className="bg-yellow-400 text-yellow-900 w-4 h-4 rounded-md flex items-center justify-center font-black text-[10px] border-b-2 border-yellow-600">3</span>Find spot!</div>
+                                    </div>
+                                    <button onClick={()=>setShowInstructions(false)}><X size={18} className="text-gray-400"/></button>
+                                </div>
+                            </div>
+                        )}
+
+                        <BingoGrid 
+                            gridLevels={gridLevels} 
+                            solved={solved} 
+                            bingoIndices={bingoIndices} 
+                            onGridClick={handleGridClick} 
+                        />
+
+                        <div className="mt-auto pt-2 shrink-0 flex flex-col items-center gap-2 pb-safe-bottom">
+                            <button 
+                                onClick={() => setShowMap(true)} 
+                                className="w-full flex items-center justify-center gap-2 bg-white text-blue-500 py-2.5 rounded-2xl font-black text-lg border-b-4 border-blue-200 shadow-sm btn-cartoon active:border-b-2 active:translate-y-0.5"
+                            >
+                                <MapIcon size={20} strokeWidth={3} />
+                                VIEW MAP
+                            </button>
+                            <button onClick={handleReset} className="text-white/80 text-[10px] font-bold underline p-2 hover:text-white drop-shadow-md">
+                                RESET GAME
+                            </button>
+                        </div>
+                    </main>
+
+                    <GameModal 
+                        level={currentLevel}
+                        showResult={showResult}
+                        inputArray={inputArray}
+                        lockedIndices={lockedIndices}
+                        errorMsg={errorMsg}
+                        praiseText={praiseText}
+                        lifelines={lifelines}
+                        activeHint={activeHint}
+                        onClose={() => setCurrentLevel(null)}
+                        onKeyClick={handleKeyClick}
+                        onSubmit={handleSubmit}
+                        onShowMap={() => setShowMap(true)}
+                        onUseLifeline={handleUseLifeline}
+                    />
+
+                    {showMap && <ParkMapModal onClose={() => setShowMap(false)} level={currentLevel} />}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
